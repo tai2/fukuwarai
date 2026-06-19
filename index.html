@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>おにの ふくわらい</title>
+<style>
+  :root { --ink:#1f1b18; --cream:#fff7ec; --accent:#ff8a4c; --accent2:#5bb1d6; --ok:#37b96b; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; }
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "Hiragino Maru Gothic Pro", "Yu Gothic", "メイリオ", system-ui, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #fff 0%, var(--cream) 45%, #ffe9d3 100%);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px;
+    overflow-x: hidden;
+  }
+  h1 { font-size: clamp(22px, 6vw, 34px); margin: 8px 0 2px; letter-spacing: 1px; }
+  .sub { color:#9a8b7d; font-size: 14px; margin-bottom: 10px; }
+
+  .card {
+    width: 100%; max-width: 480px;
+    background: #fffdf9;
+    border-radius: 24px;
+    box-shadow: 0 12px 30px rgba(120,80,40,.15), 0 2px 0 #f0e2cf inset;
+    padding: 14px;
+    position: relative;
+  }
+
+  /* 遊ぶ面 */
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 400 / 380;
+    background: #fffefb;
+    border-radius: 18px;
+    border: 2px dashed #f0dcc2;
+    overflow: hidden;
+    touch-action: none;
+  }
+  .stage svg.base, .stage svg.overlay {
+    position:absolute; inset:0; width:100%; height:100%;
+    pointer-events:none;
+  }
+
+  .part {
+    position: absolute;
+    left: 0; top: 0;
+    transform: translate(-50%, -50%);
+    will-change: transform;
+    touch-action: none;
+    cursor: grab;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,.12));
+  }
+  .part svg { width:100%; height:100%; display:block; pointer-events:none; }
+  .stage.play .part { cursor: grab; }
+  .stage.play .part.dragging { cursor: grabbing; filter: drop-shadow(0 6px 7px rgba(0,0,0,.3)); z-index:50; }
+  .stage:not(.play) .part { pointer-events: none; }
+
+  /* おぼえてね オーバーレイ */
+  .memo-banner {
+    position:absolute; top:8px; left:50%; transform:translateX(-50%);
+    background: var(--accent); color:#fff; font-weight:700;
+    padding:6px 16px; border-radius:999px; font-size:15px;
+    box-shadow:0 4px 10px rgba(255,138,76,.4); z-index:60; white-space:nowrap;
+  }
+  .memo-banner b { font-size:18px; }
+
+  .controls { display:flex; gap:10px; margin-top:14px; justify-content:center; flex-wrap:wrap; }
+  button {
+    font-family: inherit; font-weight:700; font-size:17px;
+    border:none; border-radius:999px; padding:13px 26px; cursor:pointer;
+    color:#fff; background:var(--accent);
+    box-shadow:0 5px 0 #d96e34; transition: transform .06s, box-shadow .06s;
+    -webkit-user-select:none; user-select:none;
+  }
+  button:active { transform: translateY(3px); box-shadow:0 2px 0 #d96e34; }
+  button.ghost { background:#fff; color:var(--accent); box-shadow:0 5px 0 #f0d8c2; border:2px solid #f3dcc6; }
+  button.ghost:active { box-shadow:0 2px 0 #f0d8c2; }
+  button.blue { background:var(--accent2); box-shadow:0 5px 0 #3f8aa8; }
+  button.blue:active { box-shadow:0 2px 0 #3f8aa8; }
+  button:disabled { opacity:.4; box-shadow:none; transform:none; cursor:default; }
+
+  .hint { text-align:center; color:#9a8b7d; font-size:14px; margin-top:10px; min-height:20px; }
+
+  .mute {
+    position:absolute; top:10px; right:10px; z-index:95;
+    width:42px; height:42px; padding:0; border-radius:50%;
+    font-size:20px; background:#fff; color:#7a6a5c;
+    box-shadow:0 3px 0 #eadcc8; border:2px solid #f0e2cf;
+  }
+  .mute:active { box-shadow:0 1px 0 #eadcc8; }
+  .mute.off { opacity:.55; }
+
+  /* 結果パネル（ステージの下） */
+  .result {
+    display:none;
+    margin-top:14px;
+    background:linear-gradient(180deg,#fffdf8,#fff3e3);
+    border:2px solid #f4ddc4; border-radius:18px;
+    text-align:center; padding:14px 16px;
+    box-shadow:0 6px 16px rgba(180,120,60,.12);
+  }
+  .result.show { display:block; animation: pop .3s ease; }
+  @keyframes pop { from{ transform:scale(.85); opacity:0 } to{ transform:scale(1); opacity:1 } }
+  .result .score { font-size: clamp(48px, 16vw, 76px); font-weight:800; line-height:1; color:var(--accent); }
+  .result .score small { font-size:.4em; color:#a99; }
+  .result .msg { font-size: clamp(20px,6vw,26px); font-weight:800; margin:4px 0 2px; }
+  .result .stars { font-size:26px; letter-spacing:4px; margin:2px 0; }
+  .result .detail { color:#37b96b; font-size:13px; margin-top:4px; font-weight:700; }
+
+  /* スタート画面 */
+  .start {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px;
+    background:rgba(255,251,244,.92); border-radius:18px; z-index:90; text-align:center; padding:20px;
+  }
+  .start.hide { display:none; }
+  .start p { margin:0; color:#7a6a5c; font-size:15px; line-height:1.7; }
+  .start .big { font-size:60px; }
+  .credit { margin-top:14px; color:#bcae9e; font-size:12px; }
+</style>
+</head>
+<body>
+  <h1>👹 おにの ふくわらい</h1>
+  <div class="sub">きおくを たよりに パーツを ならべよう！</div>
+
+  <div class="card">
+    <button id="muteBtn" class="mute" title="おと オン／オフ" aria-label="サウンド切り替え">🔊</button>
+    <div class="stage" id="stage">
+      <!-- ベース（りんかく・かみ・つの）はJSで描画 -->
+      <svg class="base" id="baseSvg" viewBox="0 0 400 380"></svg>
+      <!-- パーツはJSで生成 -->
+      <!-- 結果用の線 -->
+      <svg class="overlay" id="overlaySvg" viewBox="0 0 400 380"></svg>
+
+      <div class="memo-banner" id="memoBanner" style="display:none">おぼえてね！ あと <b id="memoCount">10</b></div>
+
+      <div class="start" id="startScreen">
+        <div class="big">👹</div>
+        <p><b>あそびかた</b><br>
+        ① さいしょに 10びょう おてほんを みる<br>
+        ② パーツが はじっこに ちらばる<br>
+        ③ きおくで もとの ばしょに もどす<br>
+        ④「かんせい」で とくてん！ ぴったりで 100点</p>
+        <button id="startBtn">スタート！</button>
+      </div>
+    </div>
+
+    <div class="result" id="result">
+      <div class="score" id="scoreNum">0<small>点</small></div>
+      <div class="msg" id="resultMsg"></div>
+      <div class="stars" id="resultStars"></div>
+      <div class="detail" id="resultDetail"></div>
+    </div>
+
+    <div class="controls" id="controls" style="visibility:hidden">
+      <button id="doneBtn" class="blue">かんせい！</button>
+      <button id="reshuffleBtn" class="ghost">ならべなおす</button>
+    </div>
+    <div class="hint" id="hint"></div>
+  </div>
+
+  <div class="credit">えがいたひと：むすめ ✏️</div>
+
+<script>
+(() => {
+  // ===== 効果音（WebAudioで生成・ファイル不要）=====
+  let actx = null, muted = false;
+  function audioReady(){
+    if(!actx){ const AC = window.AudioContext || window.webkitAudioContext; if(AC) actx = new AC(); }
+    if(actx && actx.state === 'suspended') actx.resume();
+  }
+  function tone(freq, start, dur, type='sine', vol=0.2){
+    if(!actx || muted) return;
+    const t0 = actx.currentTime + start;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(actx.destination);
+    o.start(t0); o.stop(t0 + dur + 0.03);
+  }
+  function arp(notes, type='triangle', step=0.1, dur=0.16, vol=0.2){
+    notes.forEach((f,i) => tone(f, i*step, dur, type, vol));
+  }
+  const SND = {
+    pick:  () => tone(720, 0, 0.07, 'triangle', 0.16),
+    drop:  () => { tone(360, 0, 0.10, 'sine', 0.22); tone(220, 0.02, 0.12, 'sine', 0.12); },
+    tick:  () => tone(900, 0, 0.05, 'sine', 0.12),
+    last:  () => tone(1300, 0, 0.12, 'square', 0.16),
+    start: () => arp([523,659,784,1047], 'triangle', 0.09, 0.18, 0.2),
+    done:  () => arp([784,587,392], 'sine', 0.06, 0.14, 0.18),
+    swoosh:() => { tone(500,0,0.12,'sawtooth',0.10); tone(800,0.04,0.10,'sawtooth',0.08); },
+    result:(score) => {
+      if(score >= 85) arp([523,659,784,1047,1318,1568], 'triangle', 0.1, 0.25, 0.22);
+      else if(score >= 60) arp([523,659,784,1047], 'triangle', 0.11, 0.22, 0.2);
+      else if(score >= 35) arp([523,659,784], 'sine', 0.12, 0.22, 0.2);
+      else arp([440,392,349], 'sine', 0.14, 0.26, 0.18);
+    },
+  };
+
+  const VW = 400, VH = 380;
+  const stage = document.getElementById('stage');
+  const baseSvg = document.getElementById('baseSvg');
+  const overlay = document.getElementById('overlaySvg');
+  const memoBanner = document.getElementById('memoBanner');
+  const memoCount = document.getElementById('memoCount');
+  const result = document.getElementById('result');
+  const startScreen = document.getElementById('startScreen');
+  const controls = document.getElementById('controls');
+  const hint = document.getElementById('hint');
+
+  // ---- ベースの絵（りんかく・かみ・つの）----
+  baseSvg.innerHTML = `
+    <g fill="#fffefb" stroke="#241f1b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+      <!-- かお（りんかくだけ。つの・かみ・かおパーツは うごかせる）-->
+      <path d="M72,185 C66,115 128,74 205,76 C286,78 336,120 336,193
+               C336,268 290,322 204,323 C116,324 78,255 72,185 Z"/>
+    </g>`;
+
+  // ---- パーツの定義 ----
+  function eyeSVG(rot){
+    return `<svg viewBox="0 0 70 38"><g transform="rotate(${rot} 35 19)">
+      <ellipse cx="35" cy="19" rx="32" ry="14" fill="#241f1b"/></g></svg>`;
+  }
+  function squareSVG(rot){
+    return `<svg viewBox="0 0 30 30"><rect x="3" y="3" width="24" height="24" rx="5"
+      fill="#241f1b" transform="rotate(${rot} 15 15)"/></svg>`;
+  }
+  function mouthSVG(){
+    return `<svg viewBox="0 0 128 64"><path d="M10,16 C20,54 108,54 118,20
+      C112,40 96,50 64,50 C34,50 18,40 10,16 Z" fill="#241f1b"/></svg>`;
+  }
+  // つの・かみ は もとの位置のまま（オフセット付き viewBox）で描画
+  const OUTLINE = 'fill="#fffefb" stroke="#241f1b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"';
+  function hairSVG(){
+    return `<svg viewBox="53 73 282 112"><path ${OUTLINE}
+      d="M80,178 C58,150 70,112 100,110 C100,78 146,78 160,106
+         C172,80 212,80 224,106 C240,78 286,82 292,114 C324,108 330,152 310,180
+         C300,160 286,156 272,168 C262,150 250,150 240,166
+         C230,150 218,150 208,168 C198,150 186,150 176,166
+         C166,150 152,150 142,168 C128,156 110,160 100,176 Z"/></svg>`;
+  }
+  function hornLSVG(){
+    return `<svg viewBox="96 29 52 88">
+      <path ${OUTLINE} d="M101,112 L110,34 L143,104 Z"/>
+      <g stroke="#241f1b" stroke-width="4" stroke-linecap="round" fill="none">
+        <path d="M104,86 L135,84"/><path d="M108,64 L127,62"/></g></svg>`;
+  }
+  function hornRSVG(){
+    return `<svg viewBox="256 35 54 78">
+      <path ${OUTLINE} d="M261,108 L301,40 L305,108 Z"/>
+      <g stroke="#241f1b" stroke-width="4" stroke-linecap="round" fill="none">
+        <path d="M270,86 L301,84"/><path d="M280,64 L300,62"/></g></svg>`;
+  }
+
+  // w,h: 論理サイズ / cx,cy: 正解の中心  ※並び順 = かさなり順（後ろほど手前）
+  const PARTS = [
+    { id:'hornL', w:52, h:88, cx:122, cy:73,  svg:hornLSVG() },
+    { id:'hornR', w:54, h:78, cx:283, cy:74,  svg:hornRSVG() },
+    { id:'hair',  w:282,h:112,cx:194, cy:129, svg:hairSVG() },
+    { id:'eyeL',  w:70, h:38, cx:162, cy:200, svg:eyeSVG(-20) },
+    { id:'eyeR',  w:70, h:38, cx:246, cy:196, svg:eyeSVG(18)  },
+    { id:'sqL',   w:30, h:30, cx:161, cy:236, svg:squareSVG(-6) },
+    { id:'sqR',   w:30, h:30, cx:236, cy:236, svg:squareSVG(8)  },
+    { id:'mouth', w:128,h:64, cx:204, cy:272, svg:mouthSVG() },
+  ];
+
+  // パーツ要素を生成
+  const partEls = {};
+  PARTS.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'part';
+    el.dataset.id = p.id;
+    el.style.width  = (p.w / VW * 100) + '%';
+    el.style.height = (p.h / VH * 100) + '%';
+    el.innerHTML = p.svg;
+    stage.appendChild(el);
+    partEls[p.id] = el;
+    p.cur = { x:p.cx, y:p.cy };   // 現在の中心（論理座標）
+    p.el = el;
+  });
+  // overlay/result/start を最前面に保つため再追加
+  stage.appendChild(overlay);
+  stage.appendChild(memoBanner);
+  stage.appendChild(startScreen);
+
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
+  function layout(p){
+    p.cur.x = clamp(p.cur.x, p.w/2, VW - p.w/2);
+    p.cur.y = clamp(p.cur.y, p.h/2, VH - p.h/2);
+    const r = stage.getBoundingClientRect();
+    const px = p.cur.x / VW * r.width;
+    const py = p.cur.y / VH * r.height;
+    // transform で動かす（left/top の書き換えだと描画が消え残るため）
+    p.el.style.transform = `translate(${px}px, ${py}px) translate(-50%, -50%)`;
+  }
+  function layoutAll(){ PARTS.forEach(layout); }
+  window.addEventListener('resize', layoutAll);
+
+  function placeCorrect(){ PARTS.forEach(p => { p.cur.x=p.cx; p.cur.y=p.cy; layout(p); }); }
+
+  function shuffle(a){
+    for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+    return a;
+  }
+  // はじっこに ちらばす
+  function scatter(){
+    // 大きい「かみ」は 下のほうへ（はじっこに収まらないため）
+    const hair = PARTS.find(p => p.id === 'hair');
+    hair.cur.x = 130 + Math.random()*140;
+    hair.cur.y = 335;
+    layout(hair);
+    // のこり7個を まわりの わくへ
+    const slots = shuffle([
+      {x:50,y:75},{x:50,y:165},{x:50,y:265},
+      {x:350,y:75},{x:350,y:165},{x:350,y:265},
+      {x:200,y:45},
+    ]);
+    const rest = shuffle(PARTS.filter(p => p.id !== 'hair'));
+    rest.forEach((p,k) => { p.cur.x=slots[k].x; p.cur.y=slots[k].y; layout(p); });
+  }
+
+  // ---- ドラッグ ----
+  let drag = null;
+  function toLogical(clientX, clientY){
+    const r = stage.getBoundingClientRect();
+    return { x:(clientX - r.left)/r.width*VW, y:(clientY - r.top)/r.height*VH };
+  }
+  PARTS.forEach(p => {
+    p.el.addEventListener('pointerdown', e => {
+      if(state !== 'play') return;
+      e.preventDefault();
+      audioReady(); SND.pick();
+      const pt = toLogical(e.clientX, e.clientY);
+      drag = { p, offx: pt.x - p.cur.x, offy: pt.y - p.cur.y };
+      p.el.setPointerCapture(e.pointerId);
+      p.el.classList.add('dragging');
+    });
+    p.el.addEventListener('pointermove', e => {
+      if(!drag || drag.p !== p) return;
+      const pt = toLogical(e.clientX, e.clientY);
+      p.cur.x = pt.x - drag.offx;
+      p.cur.y = pt.y - drag.offy;
+      layout(p);
+    });
+    const end = e => {
+      if(drag && drag.p === p){ p.el.classList.remove('dragging'); drag = null; SND.drop(); }
+    };
+    p.el.addEventListener('pointerup', end);
+    p.el.addEventListener('pointercancel', end);
+  });
+
+  // ---- ゲーム進行 ----
+  let state = 'start';     // start | memo | play | result
+  let memoTimer = null;
+
+  const doneBtn = document.getElementById('doneBtn');
+  const reshuffleBtn = document.getElementById('reshuffleBtn');
+  const startBtn = document.getElementById('startBtn');
+
+  function setState(s){ state = s; stage.classList.toggle('play', s==='play'); }
+
+  function startMemo(){
+    result.classList.remove('show');
+    overlay.innerHTML = '';
+    startScreen.classList.add('hide');
+    controls.style.visibility = 'hidden';
+    hint.textContent = '';
+    setState('memo');
+    placeCorrect();
+    memoBanner.style.display = '';
+    let left = 10;
+    memoCount.textContent = left;
+    clearInterval(memoTimer);
+    memoTimer = setInterval(() => {
+      left--;
+      memoCount.textContent = left;
+      if(left <= 3 && left > 0) SND.last(); else if(left > 0) SND.tick();
+      if(left <= 0){ clearInterval(memoTimer); startPlay(); }
+    }, 1000);
+    // 「おぼえた！次へ」でスキップ
+    controls.style.visibility = 'visible';
+    doneBtn.textContent = 'おぼえた！つぎへ';
+    doneBtn.classList.remove('blue');
+    reshuffleBtn.style.display = 'none';
+  }
+
+  function startPlay(){
+    clearInterval(memoTimer);
+    memoBanner.style.display = 'none';
+    setState('play');
+    scatter();
+    SND.swoosh();
+    controls.style.visibility = 'visible';
+    doneBtn.textContent = 'かんせい！';
+    doneBtn.classList.add('blue');
+    reshuffleBtn.style.display = '';
+    hint.textContent = 'パーツを ドラッグして もとの かおに もどそう';
+  }
+
+  function judge(){
+    setState('result');
+    let total = 0;
+    const T = 130;               // この距離で 0点
+    overlay.innerHTML = '';
+    const detail = [];
+    PARTS.forEach(p => {
+      const d = Math.hypot(p.cur.x - p.cx, p.cur.y - p.cy);
+      const sc = clamp(100 * (1 - d / T), 0, 100);
+      total += sc;
+      // 正解位置を点線で表示＋ずれの線
+      overlay.innerHTML += `
+        <line x1="${p.cur.x}" y1="${p.cur.y}" x2="${p.cx}" y2="${p.cy}" stroke="#ff8a4c" stroke-width="2.5" stroke-dasharray="3 4"/>
+        <circle cx="${p.cx}" cy="${p.cy}" r="9" fill="rgba(55,185,107,.25)" stroke="#fff" stroke-width="4"/>
+        <circle cx="${p.cx}" cy="${p.cy}" r="9" fill="none" stroke="#1f9e57" stroke-width="2.5"/>
+        <circle cx="${p.cx}" cy="${p.cy}" r="2.5" fill="#1f9e57"/>`;
+    });
+    const score = Math.round(total / PARTS.length);
+
+    let msg, stars;
+    if(score === 100){ msg='ぴったり！🎉'; stars='⭐⭐⭐⭐⭐'; }
+    else if(score >= 85){ msg='てんさい！'; stars='⭐⭐⭐⭐⭐'; }
+    else if(score >= 70){ msg='すごい！';   stars='⭐⭐⭐⭐'; }
+    else if(score >= 50){ msg='いいかんじ！'; stars='⭐⭐⭐'; }
+    else if(score >= 30){ msg='おしい！';   stars='⭐⭐'; }
+    else { msg='ドンマイ！'; stars='⭐'; }
+
+    document.getElementById('scoreNum').innerHTML = score + '<small>点</small>';
+    document.getElementById('resultMsg').textContent = msg;
+    document.getElementById('resultStars').textContent = stars;
+    document.getElementById('resultDetail').textContent = '緑のしるしが せいかいの ばしょだよ';
+    result.classList.add('show');
+    SND.result(score);
+
+    controls.style.visibility = 'visible';
+    doneBtn.textContent = 'もういちど あそぶ';
+    doneBtn.classList.remove('blue');
+    reshuffleBtn.style.display = 'none';
+    hint.textContent = '';
+  }
+
+  doneBtn.addEventListener('click', () => {
+    audioReady();
+    if(state === 'memo') startPlay();
+    else if(state === 'play'){ SND.done(); judge(); }
+    else if(state === 'result') startMemo();
+  });
+  reshuffleBtn.addEventListener('click', () => { if(state==='play'){ audioReady(); SND.swoosh(); scatter(); } });
+  startBtn.addEventListener('click', () => { audioReady(); SND.start(); startMemo(); });
+
+  const muteBtn = document.getElementById('muteBtn');
+  muteBtn.addEventListener('click', () => {
+    muted = !muted;
+    muteBtn.textContent = muted ? '🔇' : '🔊';
+    muteBtn.classList.toggle('off', muted);
+    if(!muted){ audioReady(); SND.tick(); }
+  });
+
+  // 初期表示：スタート前は正解の絵をうっすら見せておく
+  placeCorrect();
+})();
+</script>
+</body>
+</html>
