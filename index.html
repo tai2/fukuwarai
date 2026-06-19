@@ -13,12 +13,13 @@
     background: radial-gradient(circle at 50% 0%, #fff 0%, var(--cream) 45%, #ffe9d3 100%);
     color: var(--ink);
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex; flex-direction: column; align-items: center;
-    padding: 12px;
+    padding: 10px;
     overflow-x: hidden;
   }
-  h1 { font-size: clamp(22px, 6vw, 34px); margin: 8px 0 2px; letter-spacing: 1px; }
-  .sub { color:#9a8b7d; font-size: 14px; margin-bottom: 10px; }
+  h1 { font-size: clamp(20px, 5.5vw, 32px); margin: 6px 0 2px; letter-spacing: 1px; }
+  .sub { color:#9a8b7d; font-size: 14px; margin-bottom: 8px; }
 
   .card {
     width: 100%; max-width: 480px;
@@ -29,10 +30,13 @@
     position: relative;
   }
 
-  /* 遊ぶ面 */
+  /* 遊ぶ面：画面の高さに合わせて縮み、ボタンが見切れないようにする */
   .stage {
     position: relative;
     width: 100%;
+    /* タイトル・ボタン等のぶんを引いた高さに収める（横幅=高さ*400/380） */
+    max-width: min(100%, calc((100dvh - 250px) * 400 / 380));
+    margin: 0 auto;
     aspect-ratio: 400 / 380;
     background: #fffefb;
     border-radius: 18px;
@@ -68,7 +72,7 @@
   }
   .memo-banner b { font-size:18px; }
 
-  .controls { display:flex; gap:10px; margin-top:14px; justify-content:center; flex-wrap:wrap; }
+  .controls { display:flex; gap:10px; margin-top:10px; justify-content:center; flex-wrap:wrap; }
   button {
     font-family: inherit; font-weight:700; font-size:17px;
     border:none; border-radius:999px; padding:13px 26px; cursor:pointer;
@@ -83,7 +87,7 @@
   button.blue:active { box-shadow:0 2px 0 #3f8aa8; }
   button:disabled { opacity:.4; box-shadow:none; transform:none; cursor:default; }
 
-  .hint { text-align:center; color:#9a8b7d; font-size:14px; margin-top:10px; min-height:20px; }
+  .hint { text-align:center; color:#9a8b7d; font-size:14px; margin-top:8px; min-height:18px; }
 
   .mute {
     position:absolute; top:10px; right:10px; z-index:95;
@@ -97,15 +101,15 @@
   /* 結果パネル（ステージの下） */
   .result {
     display:none;
-    margin-top:14px;
+    margin-top:10px;
     background:linear-gradient(180deg,#fffdf8,#fff3e3);
     border:2px solid #f4ddc4; border-radius:18px;
-    text-align:center; padding:14px 16px;
+    text-align:center; padding:8px 16px 10px;
     box-shadow:0 6px 16px rgba(180,120,60,.12);
   }
   .result.show { display:block; animation: pop .3s ease; }
   @keyframes pop { from{ transform:scale(.85); opacity:0 } to{ transform:scale(1); opacity:1 } }
-  .result .score { font-size: clamp(48px, 16vw, 76px); font-weight:800; line-height:1; color:var(--accent); }
+  .result .score { font-size: clamp(38px, 12vw, 60px); font-weight:800; line-height:1.05; color:var(--accent); }
   .result .score small { font-size:.4em; color:#a99; }
   .result .msg { font-size: clamp(20px,6vw,26px); font-weight:800; margin:4px 0 2px; }
   .result .stars { font-size:26px; letter-spacing:4px; margin:2px 0; }
@@ -114,13 +118,13 @@
   /* スタート画面 */
   .start {
     position:absolute; inset:0; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:14px;
+    align-items:center; justify-content:center; gap:14px; overflow:auto;
     background:rgba(255,251,244,.92); border-radius:18px; z-index:90; text-align:center; padding:20px;
   }
   .start.hide { display:none; }
   .start p { margin:0; color:#7a6a5c; font-size:15px; line-height:1.7; }
   .start .big { font-size:60px; }
-  .credit { margin-top:14px; color:#bcae9e; font-size:12px; }
+  .credit { margin-top:8px; margin-bottom:2px; color:#bcae9e; font-size:12px; }
 </style>
 </head>
 <body>
